@@ -1,0 +1,172 @@
+.page {
+  min-height: 100vh;
+  background: linear-gradient(
+    180deg,
+    #3a1848 0%,
+    #2d1440 22%,
+    #1f1636 45%,
+    #13162c 68%,
+    #0b0f1c 84%,
+    #07090f 100%
+  );
+  color: #f6f6f8;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.shell {
+  width: min(100%, 420px);
+}
+
+.landing,
+.card {
+  background: rgba(20, 20, 34, 0.82);
+  border-radius: 20px;
+  border: 1px solid rgba(80, 86, 130, 0.28);
+  padding: 24px;
+}
+
+.landing {
+  text-align: center;
+}
+
+.logoIcon {
+  width: min(220px, 100%);
+  height: auto;
+  display: block;
+  margin: 0 auto 18px;
+}
+
+.logo {
+  margin: 0;
+  color: #d12bff;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 10px 0 12px;
+  color: #ffffff;
+  font-size: 34px;
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+.subtitle {
+  margin: 0 0 18px;
+  color: #a6a9b8;
+  font-size: 15px;
+}
+
+.landingActions {
+  display: grid;
+  gap: 12px;
+}
+
+.form {
+  display: grid;
+  gap: 12px;
+}
+
+.input {
+  border: 1px solid #242438;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 16px;
+  color: #f6f6f8;
+  background: #121221;
+}
+
+.input::placeholder {
+  color: #696975;
+}
+
+.input:disabled {
+  opacity: 0.7;
+}
+
+.primaryButton,
+.ghostButton {
+  border: 0;
+  cursor: pointer;
+  transition: transform 0.12s ease, opacity 0.2s ease;
+}
+
+.primaryButton:active,
+.ghostButton:active {
+  transform: scale(0.98);
+}
+
+.primaryButton:disabled,
+.ghostButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.primaryButton {
+  border-radius: 999px;
+  background: #d12bff;
+  color: #080808;
+  padding: 14px 18px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.submitButton {
+  margin-top: 4px;
+}
+
+.ghostButton {
+  background: transparent;
+  color: #d8d8de;
+  padding: 8px 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.backButton {
+  margin-top: 8px;
+}
+
+.errorText,
+.successText {
+  margin: 10px 0 0;
+  font-size: 14px;
+}
+
+.errorText {
+  color: #ff6f91;
+}
+
+.successText {
+  color: #73f0a5;
+}
+
+.tokenCard {
+  margin-top: 14px;
+  border-radius: 12px;
+  background: #0f0f16;
+  padding: 12px;
+  border: 1px solid #1f1f2b;
+}
+
+.devHint {
+  margin: 0 0 10px;
+  color: #9da0ad;
+  opacity: 0.35;
+  font-size: 11px;
+}
+
+.tokenText {
+  margin: 0 0 8px;
+  color: #9da0ad;
+  opacity: 0.5;
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}

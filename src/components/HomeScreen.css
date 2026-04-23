@@ -4,13 +4,17 @@
 
 .homeTopBar {
   width: 100%;
-  background: rgba(5, 5, 9, 0.95);
+  background: rgba(7, 7, 12, 0.78);
+  backdrop-filter: blur(10px);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   padding: 10px 16px;
   box-sizing: border-box;
   display: flex;
   justify-content: center;
+  position: sticky;
+  top: 0;
+  z-index: 25;
 }
 
 .searchShell {
@@ -124,6 +128,10 @@
 
 .searchItem:hover {
   background: rgba(255, 255, 255, 0.06);
+}
+
+.searchItemActive {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .searchItemCover {

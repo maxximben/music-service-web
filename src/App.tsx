@@ -310,6 +310,36 @@ function App() {
     setCurrentTime(clampedTime);
   };
 
+  useEffect(() => {
+    if (!isHomeScreen) {
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== 'Space') {
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+      const isTypingTarget =
+        target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable === true;
+
+      if (isTypingTarget) {
+        return;
+      }
+
+      if (!audioRef.current || !audioRef.current.src) {
+        return;
+      }
+
+      event.preventDefault();
+      togglePlay();
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isHomeScreen, isPlaying, duration]);
+
   return (
     <main className={isHomeScreen ? 'page withPlayer homeLayout' : 'page'}>
       <section className={isHomeScreen ? 'shell shellHome' : 'shell'}>

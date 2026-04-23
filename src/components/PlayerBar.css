@@ -31,6 +31,7 @@
   background: linear-gradient(155deg, #df3838 0%, #f29f32 38%, #bc2be4 100%);
   overflow: hidden;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+  transform: translateY(7px);
 }
 
 .playerCoverPlaceholder img {
@@ -42,6 +43,11 @@
 
 .playerTrackMeta {
   min-width: 0;
+  min-height: 42px;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  transform: translateY(7px);
 }
 
 .playerTrackTitle,
@@ -56,12 +62,14 @@
   color: #f1f1f6;
   font-size: 15px;
   font-weight: 600;
+  line-height: 1.12;
 }
 
 .playerTrackArtist {
   color: #aeb1bf;
   font-size: 11px;
-  margin-top: 2px;
+  line-height: 1.1;
+  margin-top: 0;
 }
 
 .playerControls {
@@ -203,10 +211,16 @@
 
   .playerTrackTitle {
     font-size: 13px;
+    line-height: 1.12;
   }
 
   .playerTrackArtist {
     font-size: 10px;
+    line-height: 1.1;
+  }
+
+  .playerTrackMeta {
+    min-height: 34px;
   }
 
   .playerControls {

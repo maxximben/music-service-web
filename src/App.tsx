@@ -311,7 +311,7 @@ function App() {
   };
 
   return (
-    <main className={isHomeScreen ? 'page withPlayer' : 'page'}>
+    <main className={isHomeScreen ? 'page withPlayer homeLayout' : 'page'}>
       <section className={isHomeScreen ? 'shell shellHome' : 'shell'}>
         {screen === 'landing' ? (
           <LandingScreen onSignUp={() => goToAuthScreen('sign-up')} onSignIn={() => goToAuthScreen('sign-in')} />

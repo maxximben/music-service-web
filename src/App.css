@@ -20,14 +20,19 @@
   padding-bottom: 118px;
 }
 
+.page.homeLayout {
+  padding: 0 0 118px;
+  place-items: start stretch;
+}
+
 .shell {
   width: min(100%, 420px);
 }
 
 .shellHome {
-  width: min(100%, 920px);
+  width: 100%;
   align-self: start;
-  margin-top: 30px;
+  margin-top: 0;
 }
 
 .landing,

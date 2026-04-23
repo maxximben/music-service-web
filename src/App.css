@@ -16,8 +16,18 @@
   box-sizing: border-box;
 }
 
+.page.withPlayer {
+  padding-bottom: 118px;
+}
+
 .shell {
   width: min(100%, 420px);
+}
+
+.shellHome {
+  width: min(100%, 920px);
+  align-self: start;
+  margin-top: 30px;
 }
 
 .landing,

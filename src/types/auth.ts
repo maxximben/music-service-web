@@ -1,4 +1,4 @@
-export type Screen = 'landing' | 'sign-in' | 'sign-up';
+export type Screen = 'landing' | 'sign-in' | 'sign-up' | 'home';
 
 export type AuthPayload = {
   accessToken?: string;

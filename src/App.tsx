@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
-import { signInRequest, signUpRequest } from './api/authApi';
+import { API_BASE_URL, signInRequest, signUpRequest } from './api/authApi';
+import { fetchHistory, fetchSearch, fetchTrackUrl } from './api/musicApi';
 import AuthScreen from './components/AuthScreen';
+import HomeScreen from './components/HomeScreen';
 import LandingScreen from './components/LandingScreen';
+import PlayerBar from './components/PlayerBar';
 import type { AuthPayload, Screen } from './types/auth';
+import type { SearchItem } from './types/search';
 
 function App() {
   const [screen, setScreen] = useState<Screen>('landing');
@@ -14,6 +18,29 @@ function App() {
   const [errorText, setErrorText] = useState('');
   const [successText, setSuccessText] = useState('');
   const [tokens, setTokens] = useState<AuthPayload | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchItems, setSearchItems] = useState<SearchItem[]>([]);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [currentTrack, setCurrentTrack] = useState<SearchItem>({
+    cover: null,
+    name: 'Ничего не играет',
+    type: 'Track',
+    author: 'Выберите трек в поиске',
+    id: 0,
+  });
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const hideSearchTimeoutRef = useRef<number | null>(null);
+  const accessToken = useMemo(
+    () => (typeof tokens?.accessToken === 'string' ? tokens.accessToken : ''),
+    [tokens],
+  );
+  const isHomeScreen = screen === 'home' && accessToken.length > 0;
 
   const resetMessages = () => {
     setErrorText('');
@@ -39,7 +66,9 @@ function App() {
     try {
       const payload = await signInRequest(trimmedEmail, password);
       setTokens(payload);
-      setSuccessText('Вход выполнен успешно.');
+      setScreen('home');
+      setSuccessText('');
+      setErrorText('');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Не удалось выполнить вход.';
       setErrorText(message);
@@ -81,18 +110,223 @@ function App() {
   };
 
   const logout = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = '';
+    }
+
+    if (hideSearchTimeoutRef.current) {
+      window.clearTimeout(hideSearchTimeoutRef.current);
+      hideSearchTimeoutRef.current = null;
+    }
+
     setTokens(null);
     setPassword('');
     setSuccessText('');
     setErrorText('');
+    setSearchQuery('');
+    setSearchItems([]);
+    setSearchError('');
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setCurrentTrack({
+      cover: null,
+      name: 'Ничего не играет',
+      type: 'Track',
+      author: 'Выберите трек в поиске',
+      id: 0,
+    });
     setScreen('landing');
   };
 
+  useEffect(() => {
+    if (!isHomeScreen || !isSearchOpen) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const trimmedQuery = searchQuery.trim();
+
+    const loadSearchData = async () => {
+      setIsSearchLoading(true);
+      setSearchError('');
+      if (trimmedQuery.length > 0) {
+        // Hide history immediately once user starts typing.
+        setSearchItems([]);
+      }
+
+      try {
+        const response =
+          trimmedQuery.length === 0
+            ? await fetchHistory(accessToken, controller.signal)
+            : await fetchSearch(accessToken, trimmedQuery, controller.signal);
+        setSearchItems(response.items ?? []);
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        const message = error instanceof Error ? error.message : 'Не удалось загрузить результаты поиска.';
+        setSearchError(message);
+        setSearchItems([]);
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsSearchLoading(false);
+        }
+      }
+    };
+
+    void loadSearchData();
+
+    return () => {
+      controller.abort();
+    };
+  }, [isHomeScreen, isSearchOpen, searchQuery, accessToken]);
+
+  useEffect(() => {
+    const audio = new Audio();
+    audioRef.current = audio;
+
+    const onTimeUpdate = () => {
+      setCurrentTime(audio.currentTime || 0);
+    };
+    const onDurationChange = () => {
+      const nextDuration = Number.isFinite(audio.duration) ? audio.duration : 0;
+      setDuration(nextDuration);
+    };
+    const onEnded = () => {
+      setIsPlaying(false);
+    };
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+
+    audio.addEventListener('timeupdate', onTimeUpdate);
+    audio.addEventListener('loadedmetadata', onDurationChange);
+    audio.addEventListener('durationchange', onDurationChange);
+    audio.addEventListener('ended', onEnded);
+    audio.addEventListener('play', onPlay);
+    audio.addEventListener('pause', onPause);
+
+    return () => {
+      if (hideSearchTimeoutRef.current) {
+        window.clearTimeout(hideSearchTimeoutRef.current);
+      }
+
+      audio.pause();
+      audio.src = '';
+      audio.removeEventListener('timeupdate', onTimeUpdate);
+      audio.removeEventListener('loadedmetadata', onDurationChange);
+      audio.removeEventListener('durationchange', onDurationChange);
+      audio.removeEventListener('ended', onEnded);
+      audio.removeEventListener('play', onPlay);
+      audio.removeEventListener('pause', onPause);
+      audioRef.current = null;
+    };
+  }, []);
+
+  const onSearchFocus = () => {
+    if (hideSearchTimeoutRef.current) {
+      window.clearTimeout(hideSearchTimeoutRef.current);
+      hideSearchTimeoutRef.current = null;
+    }
+    setIsSearchOpen(true);
+  };
+
+  const onSearchBlur = () => {
+    hideSearchTimeoutRef.current = window.setTimeout(() => {
+      setIsSearchOpen(false);
+      hideSearchTimeoutRef.current = null;
+    }, 150);
+  };
+
+  const onSearchQueryChange = (value: string) => {
+    setSearchQuery(value);
+    setIsSearchOpen(true);
+  };
+
+  const onTrackClick = async (item: SearchItem) => {
+    if (!accessToken) {
+      return;
+    }
+
+    if (item.type !== 'Track') {
+      setSearchError('Сейчас можно воспроизводить только треки.');
+      return;
+    }
+
+    try {
+      setSearchError('');
+      const trackUrlResponse = await fetchTrackUrl(accessToken, item.id);
+      const trackUrl = trackUrlResponse.trim().replace(/^"(.*)"$/, '$1');
+      const resolvedTrackUrl =
+        trackUrl.startsWith('http://') || trackUrl.startsWith('https://')
+          ? trackUrl
+          : new URL(trackUrl, API_BASE_URL).toString();
+
+      if (!audioRef.current) {
+        return;
+      }
+
+      setCurrentTime(0);
+      setDuration(0);
+      audioRef.current.src = resolvedTrackUrl;
+      await audioRef.current.play();
+      setCurrentTrack(item);
+      setIsPlaying(true);
+      setIsSearchOpen(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Не удалось запустить трек.';
+      setSearchError(message);
+      setIsPlaying(false);
+    }
+  };
+
+  const togglePlay = () => {
+    if (!audioRef.current || !audioRef.current.src) {
+      return;
+    }
+
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+      return;
+    }
+
+    void audioRef.current.play().then(
+      () => setIsPlaying(true),
+      () => setIsPlaying(false),
+    );
+  };
+
+  const seekTrack = (nextTime: number) => {
+    if (!audioRef.current || !Number.isFinite(nextTime)) {
+      return;
+    }
+
+    const maxTime = Number.isFinite(audioRef.current.duration) ? audioRef.current.duration : duration;
+    const clampedTime = Math.max(0, Math.min(nextTime, maxTime || nextTime));
+    audioRef.current.currentTime = clampedTime;
+    setCurrentTime(clampedTime);
+  };
+
   return (
-    <main className="page">
-      <section className="shell">
+    <main className={isHomeScreen ? 'page withPlayer' : 'page'}>
+      <section className={isHomeScreen ? 'shell shellHome' : 'shell'}>
         {screen === 'landing' ? (
           <LandingScreen onSignUp={() => goToAuthScreen('sign-up')} onSignIn={() => goToAuthScreen('sign-in')} />
+        ) : screen === 'home' ? (
+          <HomeScreen
+            query={searchQuery}
+            isDropdownOpen={isSearchOpen}
+            isLoading={isSearchLoading}
+            errorText={searchError}
+            items={searchItems}
+            onQueryChange={onSearchQueryChange}
+            onFocus={onSearchFocus}
+            onBlur={onSearchBlur}
+            onTrackClick={onTrackClick}
+          />
         ) : (
           <AuthScreen
             screen={screen}
@@ -112,6 +346,18 @@ function App() {
           />
         )}
       </section>
+      {isHomeScreen ? (
+        <PlayerBar
+          isPlaying={isPlaying}
+          trackTitle={currentTrack.name}
+          trackArtist={currentTrack.author}
+          trackCover={currentTrack.cover}
+          currentTime={currentTime}
+          duration={duration}
+          onTogglePlay={togglePlay}
+          onSeek={seekTrack}
+        />
+      ) : null}
     </main>
   );
 }

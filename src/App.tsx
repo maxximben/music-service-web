@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 import { API_BASE_URL, signInRequest, signUpRequest } from './api/authApi';
-import { fetchHistory, fetchSearch, fetchTrackUrl } from './api/musicApi';
+import { fetchHistory, fetchLibrary, fetchPlaylist, fetchSearch, fetchTrackUrl } from './api/musicApi';
 import AuthScreen from './components/AuthScreen';
 import HomeScreen from './components/HomeScreen';
 import LandingScreen from './components/LandingScreen';
 import PlayerBar from './components/PlayerBar';
 import type { AuthPayload, Screen } from './types/auth';
+import type { PlaylistResponse, PlaylistSong } from './types/playlist';
 import type { SearchItem } from './types/search';
 
 function App() {
@@ -23,6 +24,12 @@ function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
+  const [libraryItems, setLibraryItems] = useState<SearchItem[]>([]);
+  const [libraryLoading, setLibraryLoading] = useState(false);
+  const [libraryError, setLibraryError] = useState('');
+  const [playlist, setPlaylist] = useState<PlaylistResponse | null>(null);
+  const [playlistLoading, setPlaylistLoading] = useState(false);
+  const [playlistError, setPlaylistError] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -36,6 +43,7 @@ function App() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hideSearchTimeoutRef = useRef<number | null>(null);
+  const playlistRequestControllerRef = useRef<AbortController | null>(null);
   const accessToken = useMemo(
     () => (typeof tokens?.accessToken === 'string' ? tokens.accessToken : ''),
     [tokens],
@@ -120,6 +128,11 @@ function App() {
       hideSearchTimeoutRef.current = null;
     }
 
+    if (playlistRequestControllerRef.current) {
+      playlistRequestControllerRef.current.abort();
+      playlistRequestControllerRef.current = null;
+    }
+
     setTokens(null);
     setPassword('');
     setSuccessText('');
@@ -127,6 +140,12 @@ function App() {
     setSearchQuery('');
     setSearchItems([]);
     setSearchError('');
+    setLibraryItems([]);
+    setLibraryError('');
+    setLibraryLoading(false);
+    setPlaylist(null);
+    setPlaylistError('');
+    setPlaylistLoading(false);
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
@@ -183,6 +202,47 @@ function App() {
       controller.abort();
     };
   }, [isHomeScreen, isSearchOpen, searchQuery, accessToken]);
+
+  useEffect(() => {
+    if (!isHomeScreen) {
+      return;
+    }
+
+    const controller = new AbortController();
+    setLibraryLoading(true);
+    setLibraryError('');
+
+    void fetchLibrary(accessToken, controller.signal)
+      .then((response) => {
+        setLibraryItems(response.items ?? []);
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        const message = error instanceof Error ? error.message : 'Не удалось загрузить библиотеку.';
+        setLibraryError(message);
+        setLibraryItems([]);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setLibraryLoading(false);
+        }
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [isHomeScreen, accessToken]);
+
+  useEffect(() => {
+    return () => {
+      if (playlistRequestControllerRef.current) {
+        playlistRequestControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const audio = new Audio();
@@ -282,6 +342,101 @@ function App() {
     }
   };
 
+  const onPlaylistSongClick = async (song: PlaylistSong) => {
+    if (!audioRef.current) {
+      return;
+    }
+
+    const rawUrl = song.url?.trim();
+    if (!rawUrl) {
+      setPlaylistError('У трека отсутствует ссылка на аудио.');
+      return;
+    }
+
+    const resolvedTrackUrl =
+      rawUrl.startsWith('http://') || rawUrl.startsWith('https://')
+        ? rawUrl
+        : new URL(rawUrl, API_BASE_URL).toString();
+
+    try {
+      setPlaylistError('');
+      setCurrentTime(0);
+      setDuration(0);
+      audioRef.current.src = resolvedTrackUrl;
+      await audioRef.current.play();
+      setCurrentTrack({
+        cover: song.cover,
+        name: song.title,
+        type: 'Track',
+        author: song.author,
+        id: song.songId,
+      });
+      setIsPlaying(true);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Не удалось запустить трек из плейлиста.';
+      setPlaylistError(message);
+      setIsPlaying(false);
+    }
+  };
+
+  const openPlaylist = async (playlistId: number) => {
+    if (!accessToken) {
+      return;
+    }
+
+    if (playlistRequestControllerRef.current) {
+      playlistRequestControllerRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    playlistRequestControllerRef.current = controller;
+
+    try {
+      setPlaylistLoading(true);
+      setPlaylistError('');
+      const playlistResponse = await fetchPlaylist(accessToken, playlistId, controller.signal);
+      setPlaylist(playlistResponse);
+    } catch (error) {
+      if (controller.signal.aborted) {
+        return;
+      }
+
+      const message = error instanceof Error ? error.message : 'Не удалось загрузить плейлист.';
+      setPlaylistError(message);
+      setPlaylist(null);
+    } finally {
+      if (!controller.signal.aborted) {
+        setPlaylistLoading(false);
+      }
+    }
+  };
+
+  const onSearchItemClick = async (item: SearchItem) => {
+    if (item.type === 'Track') {
+      await onTrackClick(item);
+      return;
+    }
+
+    if (item.type === 'Playlist' || item.type === 'Album') {
+      await openPlaylist(item.id);
+      setIsSearchOpen(false);
+      return;
+    }
+  };
+
+  const onLibraryItemClick = async (item: SearchItem) => {
+    if (item.type === 'Track') {
+      await onTrackClick(item);
+      return;
+    }
+
+    if (item.type !== 'Playlist' && item.type !== 'Album') {
+      return;
+    }
+
+    await openPlaylist(item.id);
+  };
+
   const togglePlay = () => {
     if (!audioRef.current || !audioRef.current.src) {
       return;
@@ -352,10 +507,18 @@ function App() {
             isLoading={isSearchLoading}
             errorText={searchError}
             items={searchItems}
+            libraryItems={libraryItems}
+            libraryLoading={libraryLoading}
+            libraryError={libraryError}
+            playlist={playlist}
+            playlistLoading={playlistLoading}
+            playlistError={playlistError}
             onQueryChange={onSearchQueryChange}
             onFocus={onSearchFocus}
             onBlur={onSearchBlur}
-            onTrackClick={onTrackClick}
+            onSearchItemClick={onSearchItemClick}
+            onLibraryItemClick={onLibraryItemClick}
+            onPlaylistSongClick={onPlaylistSongClick}
           />
         ) : (
           <AuthScreen

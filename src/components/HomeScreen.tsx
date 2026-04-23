@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
+import type { PlaylistResponse, PlaylistSong } from '../types/playlist';
 import type { SearchItem } from '../types/search';
+import LibraryPanel from './LibraryPanel';
+import PlaylistView from './PlaylistView';
 import './HomeScreen.css';
 
 type HomeScreenProps = {
@@ -9,10 +12,18 @@ type HomeScreenProps = {
   isLoading: boolean;
   errorText: string;
   items: SearchItem[];
+  libraryItems: SearchItem[];
+  libraryLoading: boolean;
+  libraryError: string;
+  playlist: PlaylistResponse | null;
+  playlistLoading: boolean;
+  playlistError: string;
   onQueryChange: (value: string) => void;
   onFocus: () => void;
   onBlur: () => void;
-  onTrackClick: (item: SearchItem) => void;
+  onSearchItemClick: (item: SearchItem) => void;
+  onLibraryItemClick: (item: SearchItem) => void;
+  onPlaylistSongClick: (song: PlaylistSong) => void;
 };
 
 function HomeScreen({
@@ -21,10 +32,18 @@ function HomeScreen({
   isLoading,
   errorText,
   items,
+  libraryItems,
+  libraryLoading,
+  libraryError,
+  playlist,
+  playlistLoading,
+  playlistError,
   onQueryChange,
   onFocus,
   onBlur,
-  onTrackClick,
+  onSearchItemClick,
+  onLibraryItemClick,
+  onPlaylistSongClick,
 }: HomeScreenProps) {
   const isHistoryMode = query.trim().length === 0;
   const visibleItems = isHistoryMode ? items.slice(0, 8) : items;
@@ -80,7 +99,7 @@ function HomeScreen({
       event.preventDefault();
       const selected = visibleItems[activeIndex];
       if (selected) {
-        onTrackClick(selected);
+        onSearchItemClick(selected);
       }
     }
   };
@@ -101,7 +120,7 @@ function HomeScreen({
               value={query}
               onChange={(event) => onQueryChange(event.target.value)}
               onFocus={onFocus}
-            onKeyDown={onInputKeyDown}
+              onKeyDown={onInputKeyDown}
               placeholder="Что хочешь включить?"
               autoComplete="off"
             />
@@ -109,7 +128,6 @@ function HomeScreen({
 
           {isDropdownOpen ? (
             <div className="searchDropdown">
-              {isLoading ? <p className="searchHint">Поиск...</p> : null}
               {errorText ? <p className="searchError">{errorText}</p> : null}
 
               {hasItems ? (
@@ -121,7 +139,7 @@ function HomeScreen({
                         className={`searchItem${activeIndex === index ? ' searchItemActive' : ''}`}
                         onMouseDown={(event) => event.preventDefault()}
                         onMouseEnter={() => setActiveIndex(index)}
-                        onClick={() => onTrackClick(item)}
+                        onClick={() => onSearchItemClick(item)}
                         ref={(element) => {
                           itemRefs.current[index] = element;
                         }}
@@ -131,7 +149,9 @@ function HomeScreen({
                         </span>
                         <span className="searchItemMeta">
                           <span className="searchItemName">{item.name}</span>
-                          <span className="searchItemAuthor">{item.author}</span>
+                          <span className="searchItemAuthor">
+                            <span className="searchItemAuthorText">{item.author}</span>
+                          </span>
                         </span>
                         <span className="searchItemType">{item.type}</span>
                       </button>
@@ -144,6 +164,25 @@ function HomeScreen({
               {showEmpty ? <p className="searchHint">Ничего не найдено</p> : null}
             </div>
           ) : null}
+        </div>
+      </div>
+
+      <div className="homeBody">
+        <div className="homeLibraryArea">
+          <LibraryPanel
+            items={libraryItems}
+            isLoading={libraryLoading}
+            errorText={libraryError}
+            onItemClick={onLibraryItemClick}
+          />
+        </div>
+        <div className="homeMainArea">
+          <PlaylistView
+            playlist={playlist}
+            isLoading={playlistLoading}
+            errorText={playlistError}
+            onSongClick={onPlaylistSongClick}
+          />
         </div>
       </div>
     </div>

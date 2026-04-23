@@ -2,6 +2,23 @@
   width: 100%;
 }
 
+.homeBody {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.homeLibraryArea {
+  min-width: 0;
+  display: flex;
+}
+
+.homeMainArea {
+  min-height: 220px;
+}
+
 .homeTopBar {
   width: 100%;
   background: rgba(7, 7, 12, 0.78);
@@ -173,6 +190,10 @@
   font-size: 12px;
 }
 
+.searchItemAuthorText:hover {
+  text-decoration: underline;
+}
+
 .searchItemType {
   font-size: 11px;
   color: #9ca0b3;
@@ -203,6 +224,11 @@
 }
 
 @media (max-width: 700px) {
+  .homeBody {
+    grid-template-columns: 1fr;
+    padding: 10px;
+  }
+
   .homeTopBar {
     padding: 8px 10px;
   }

@@ -72,6 +72,10 @@
   margin-top: 0;
 }
 
+.playerTrackArtist:hover {
+  text-decoration: underline;
+}
+
 .playerControls {
   display: flex;
   justify-content: center;

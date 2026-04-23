@@ -1,5 +1,6 @@
 import { API_BASE_URL } from './authApi';
 import type { SearchResponse } from '../types/search';
+import type { PlaylistResponse } from '../types/playlist';
 
 function getAuthHeader(accessToken: string): HeadersInit {
   return {
@@ -52,4 +53,29 @@ export async function fetchTrackUrl(accessToken: string, songId: number): Promis
   }
 
   return response.text();
+}
+
+export async function fetchLibrary(accessToken: string, signal?: AbortSignal): Promise<SearchResponse> {
+  const response = await fetch(`${API_BASE_URL}/library`, {
+    method: 'GET',
+    headers: getAuthHeader(accessToken),
+    signal,
+  });
+
+  return parseResponse<SearchResponse>(response);
+}
+
+export async function fetchPlaylist(
+  accessToken: string,
+  playlistId: number,
+  signal?: AbortSignal,
+): Promise<PlaylistResponse> {
+  const params = new URLSearchParams({ playlistId: String(playlistId) });
+  const response = await fetch(`${API_BASE_URL}/playlist?${params.toString()}`, {
+    method: 'GET',
+    headers: getAuthHeader(accessToken),
+    signal,
+  });
+
+  return parseResponse<PlaylistResponse>(response);
 }

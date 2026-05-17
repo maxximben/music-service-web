@@ -1,11 +1,11 @@
 export type PlaylistSong = {
   songId: number;
   title: string;
-  userId: number;
   cover: string | null;
   url: string;
-  duration: number;
+  duration: number | null;
   author: string;
+  authors: string[];
 };
 
 export type PlaylistResponse = {

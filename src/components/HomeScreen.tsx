@@ -15,6 +15,9 @@ type HomeScreenProps = {
   libraryItems: SearchItem[];
   libraryLoading: boolean;
   libraryError: string;
+  isCreatingPlaylist: boolean;
+  createPlaylistError: string;
+  deletingPlaylistId: number | null;
   playlist: PlaylistResponse | null;
   playlistLoading: boolean;
   playlistError: string;
@@ -24,6 +27,8 @@ type HomeScreenProps = {
   onSearchItemClick: (item: SearchItem) => void;
   onLibraryItemClick: (item: SearchItem) => void;
   onPlaylistSongClick: (song: PlaylistSong) => void;
+  onCreatePlaylist: (title: string) => Promise<void>;
+  onDeletePlaylist: (playlistId: number) => Promise<void>;
 };
 
 function HomeScreen({
@@ -35,6 +40,9 @@ function HomeScreen({
   libraryItems,
   libraryLoading,
   libraryError,
+  isCreatingPlaylist,
+  createPlaylistError,
+  deletingPlaylistId,
   playlist,
   playlistLoading,
   playlistError,
@@ -44,6 +52,8 @@ function HomeScreen({
   onSearchItemClick,
   onLibraryItemClick,
   onPlaylistSongClick,
+  onCreatePlaylist,
+  onDeletePlaylist,
 }: HomeScreenProps) {
   const isHistoryMode = query.trim().length === 0;
   const visibleItems = isHistoryMode ? items.slice(0, 8) : items;
@@ -173,7 +183,12 @@ function HomeScreen({
             items={libraryItems}
             isLoading={libraryLoading}
             errorText={libraryError}
+            isCreatingPlaylist={isCreatingPlaylist}
+            createPlaylistError={createPlaylistError}
+            deletingPlaylistId={deletingPlaylistId}
             onItemClick={onLibraryItemClick}
+            onCreatePlaylist={onCreatePlaylist}
+            onDeletePlaylist={onDeletePlaylist}
           />
         </div>
         <div className="homeMainArea">

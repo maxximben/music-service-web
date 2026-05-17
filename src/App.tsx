@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 import { API_BASE_URL, signInRequest, signUpRequest } from './api/authApi';
-import { fetchHistory, fetchLibrary, fetchPlaylist, fetchSearch, fetchTrackUrl } from './api/musicApi';
+import {
+  createPlaylist,
+  deletePlaylist,
+  fetchHistory,
+  fetchLibrary,
+  fetchPlaylist,
+  fetchSearch,
+  fetchTrackUrl,
+} from './api/musicApi';
 import AuthScreen from './components/AuthScreen';
 import HomeScreen from './components/HomeScreen';
 import LandingScreen from './components/LandingScreen';
@@ -27,9 +35,12 @@ function App() {
   const [libraryItems, setLibraryItems] = useState<SearchItem[]>([]);
   const [libraryLoading, setLibraryLoading] = useState(false);
   const [libraryError, setLibraryError] = useState('');
+  const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
+  const [createPlaylistError, setCreatePlaylistError] = useState('');
   const [playlist, setPlaylist] = useState<PlaylistResponse | null>(null);
   const [playlistLoading, setPlaylistLoading] = useState(false);
   const [playlistError, setPlaylistError] = useState('');
+  const [deletingPlaylistId, setDeletingPlaylistId] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -143,9 +154,12 @@ function App() {
     setLibraryItems([]);
     setLibraryError('');
     setLibraryLoading(false);
+    setIsCreatingPlaylist(false);
+    setCreatePlaylistError('');
     setPlaylist(null);
     setPlaylistError('');
     setPlaylistLoading(false);
+    setDeletingPlaylistId(null);
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
@@ -437,6 +451,54 @@ function App() {
     await openPlaylist(item.id);
   };
 
+  const onCreatePlaylist = async (title: string) => {
+    if (!accessToken) {
+      setCreatePlaylistError('Сначала войдите в аккаунт.');
+      throw new Error('Missing access token');
+    }
+
+    try {
+      setIsCreatingPlaylist(true);
+      setCreatePlaylistError('');
+      const createdPlaylist = await createPlaylist(accessToken, title);
+      setPlaylist(createdPlaylist);
+      setPlaylistError('');
+
+      const libraryResponse = await fetchLibrary(accessToken);
+      setLibraryItems(libraryResponse.items ?? []);
+      setLibraryError('');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Не удалось создать плейлист.';
+      setCreatePlaylistError(message);
+      throw error;
+    } finally {
+      setIsCreatingPlaylist(false);
+    }
+  };
+
+  const onDeletePlaylist = async (playlistId: number) => {
+    if (!accessToken) {
+      setPlaylistError('Сначала войдите в аккаунт.');
+      return;
+    }
+
+    try {
+      setDeletingPlaylistId(playlistId);
+      setPlaylistError('');
+      await deletePlaylist(accessToken, playlistId);
+      setPlaylist((currentPlaylist) => (currentPlaylist?.playlistId === playlistId ? null : currentPlaylist));
+
+      const libraryResponse = await fetchLibrary(accessToken);
+      setLibraryItems(libraryResponse.items ?? []);
+      setLibraryError('');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Не удалось удалить плейлист.';
+      setPlaylistError(message);
+    } finally {
+      setDeletingPlaylistId(null);
+    }
+  };
+
   const togglePlay = () => {
     if (!audioRef.current || !audioRef.current.src) {
       return;
@@ -510,6 +572,9 @@ function App() {
             libraryItems={libraryItems}
             libraryLoading={libraryLoading}
             libraryError={libraryError}
+            isCreatingPlaylist={isCreatingPlaylist}
+            createPlaylistError={createPlaylistError}
+            deletingPlaylistId={deletingPlaylistId}
             playlist={playlist}
             playlistLoading={playlistLoading}
             playlistError={playlistError}
@@ -519,6 +584,8 @@ function App() {
             onSearchItemClick={onSearchItemClick}
             onLibraryItemClick={onLibraryItemClick}
             onPlaylistSongClick={onPlaylistSongClick}
+            onCreatePlaylist={onCreatePlaylist}
+            onDeletePlaylist={onDeletePlaylist}
           />
         ) : (
           <AuthScreen

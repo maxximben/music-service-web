@@ -79,3 +79,28 @@ export async function fetchPlaylist(
 
   return parseResponse<PlaylistResponse>(response);
 }
+
+export async function createPlaylist(accessToken: string, title: string): Promise<PlaylistResponse> {
+  const response = await fetch(`${API_BASE_URL}/playlist/create`, {
+    method: 'POST',
+    headers: {
+      ...getAuthHeader(accessToken),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ title }),
+  });
+
+  return parseResponse<PlaylistResponse>(response);
+}
+
+export async function deletePlaylist(accessToken: string, playlistId: number): Promise<void> {
+  const params = new URLSearchParams({ playlistId: String(playlistId) });
+  const response = await fetch(`${API_BASE_URL}/playlist?${params.toString()}`, {
+    method: 'DELETE',
+    headers: getAuthHeader(accessToken),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed: ${response.status} ${response.statusText}`);
+  }
+}

@@ -8,7 +8,11 @@ type PlaylistViewProps = {
   onSongClick: (song: PlaylistSong) => void;
 };
 
-function formatDuration(rawDuration: number): string {
+function formatDuration(rawDuration: number | null): string {
+  if (rawDuration === null) {
+    return '--:--';
+  }
+
   if (!Number.isFinite(rawDuration) || rawDuration <= 0) {
     return '0:00';
   }
@@ -19,7 +23,12 @@ function formatDuration(rawDuration: number): string {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
-function PlaylistView({ playlist, isLoading, errorText, onSongClick }: PlaylistViewProps) {
+function PlaylistView({
+  playlist,
+  isLoading,
+  errorText,
+  onSongClick,
+}: PlaylistViewProps) {
   if (isLoading) {
     return <section className="playlistViewState">Загрузка плейлиста...</section>;
   }

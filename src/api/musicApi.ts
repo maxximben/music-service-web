@@ -65,6 +65,16 @@ export async function fetchLibrary(accessToken: string, signal?: AbortSignal): P
   return parseResponse<SearchResponse>(response);
 }
 
+export async function addAlbumToLibrary(accessToken: string, albumId: number): Promise<SearchResponse> {
+  const params = new URLSearchParams({ albumId: String(albumId) });
+  const response = await fetch(`${API_BASE_URL}/library/add-album?${params.toString()}`, {
+    method: 'POST',
+    headers: getAuthHeader(accessToken),
+  });
+
+  return parseResponse<SearchResponse>(response);
+}
+
 export async function fetchPlaylist(
   accessToken: string,
   playlistId: number,
@@ -93,6 +103,16 @@ export async function createPlaylist(accessToken: string, title: string): Promis
   return parseResponse<PlaylistResponse>(response);
 }
 
+export async function createTrackRadio(accessToken: string, songId: number): Promise<PlaylistResponse> {
+  const params = new URLSearchParams({ songId: String(songId) });
+  const response = await fetch(`${API_BASE_URL}/get-radio?${params.toString()}`, {
+    method: 'POST',
+    headers: getAuthHeader(accessToken),
+  });
+
+  return parseResponse<PlaylistResponse>(response);
+}
+
 export async function deletePlaylist(accessToken: string, playlistId: number): Promise<void> {
   const params = new URLSearchParams({ playlistId: String(playlistId) });
   const response = await fetch(`${API_BASE_URL}/playlist?${params.toString()}`, {
@@ -103,4 +123,55 @@ export async function deletePlaylist(accessToken: string, playlistId: number): P
   if (!response.ok) {
     throw new Error(`Request failed: ${response.status} ${response.statusText}`);
   }
+}
+
+export async function renamePlaylist(
+  accessToken: string,
+  playlistId: number,
+  title: string,
+): Promise<PlaylistResponse> {
+  const params = new URLSearchParams({
+    playlistId: String(playlistId),
+    title,
+  });
+  const response = await fetch(`${API_BASE_URL}/playlist/set-title?${params.toString()}`, {
+    method: 'PATCH',
+    headers: getAuthHeader(accessToken),
+  });
+
+  return parseResponse<PlaylistResponse>(response);
+}
+
+export async function addSongToPlaylist(
+  accessToken: string,
+  playlistId: number,
+  songId: number,
+): Promise<PlaylistResponse> {
+  const params = new URLSearchParams({
+    playlistId: String(playlistId),
+    songId: String(songId),
+  });
+  const response = await fetch(`${API_BASE_URL}/playlist/add-song?${params.toString()}`, {
+    method: 'PATCH',
+    headers: getAuthHeader(accessToken),
+  });
+
+  return parseResponse<PlaylistResponse>(response);
+}
+
+export async function removeSongFromPlaylist(
+  accessToken: string,
+  playlistId: number,
+  songId: number,
+): Promise<PlaylistResponse> {
+  const params = new URLSearchParams({
+    playlistId: String(playlistId),
+    songId: String(songId),
+  });
+  const response = await fetch(`${API_BASE_URL}/playlist/delete-song?${params.toString()}`, {
+    method: 'DELETE',
+    headers: getAuthHeader(accessToken),
+  });
+
+  return parseResponse<PlaylistResponse>(response);
 }

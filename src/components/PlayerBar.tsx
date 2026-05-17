@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import './PlayerBar.css';
 import nextIcon from '../assets/next.png';
 import pauseIcon from '../assets/pause.png';
@@ -11,6 +11,8 @@ type IconButtonProps = {
   label: string;
   children: ReactNode;
   isPrimary?: boolean;
+  isActive?: boolean;
+  disabled?: boolean;
   onClick?: () => void;
 };
 
@@ -21,8 +23,17 @@ type PlayerBarProps = {
   trackCover: string | null;
   currentTime: number;
   duration: number;
+  canShuffle: boolean;
+  canGoPrevious: boolean;
+  canGoNext: boolean;
+  isShuffleEnabled: boolean;
+  isRepeatTrackEnabled: boolean;
   onTogglePlay: () => void;
   onSeek: (nextTime: number) => void;
+  onToggleShuffle: () => void;
+  onPreviousTrack: () => void;
+  onNextTrack: () => void;
+  onToggleRepeatTrack: () => void;
 };
 
 function formatTime(totalSeconds: number): string {
@@ -36,12 +47,21 @@ function formatTime(totalSeconds: number): string {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
-function IconButton({ label, children, isPrimary = false, onClick }: IconButtonProps) {
+function IconButton({
+  label,
+  children,
+  isPrimary = false,
+  isActive = false,
+  disabled = false,
+  onClick,
+}: IconButtonProps) {
   return (
     <button
-      className={isPrimary ? 'playerControl playerControlPrimary' : 'playerControl'}
+      className={`playerControl${isPrimary ? ' playerControlPrimary' : ''}${isActive ? ' playerControlActive' : ''}`}
       type="button"
       aria-label={label}
+      aria-pressed={isActive}
+      disabled={disabled}
       onClick={onClick}
     >
       {children}
@@ -56,8 +76,17 @@ function PlayerBar({
   trackCover,
   currentTime,
   duration,
+  canShuffle,
+  canGoPrevious,
+  canGoNext,
+  isShuffleEnabled,
+  isRepeatTrackEnabled,
   onTogglePlay,
   onSeek,
+  onToggleShuffle,
+  onPreviousTrack,
+  onNextTrack,
+  onToggleRepeatTrack,
 }: PlayerBarProps) {
   const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
   const safeCurrentTime = Number.isFinite(currentTime) && currentTime >= 0 ? currentTime : 0;
@@ -78,11 +107,15 @@ function PlayerBar({
         </div>
 
         <div className="playerControls">
-          <IconButton label="Shuffle">
-            <img src={shuffleIcon} alt="" />
+          <IconButton label="Shuffle" isActive={isShuffleEnabled} disabled={!canShuffle} onClick={onToggleShuffle}>
+            <span
+              className="playerControlMaskIcon"
+              style={{ '--player-control-icon': `url(${shuffleIcon})` } as CSSProperties}
+              aria-hidden="true"
+            />
           </IconButton>
 
-          <IconButton label="Previous">
+          <IconButton label="Previous" onClick={onPreviousTrack} disabled={!canGoPrevious}>
             <img src={previousIcon} alt="" />
           </IconButton>
 
@@ -94,12 +127,16 @@ function PlayerBar({
             <img src={isPlaying ? pauseIcon : playIcon} alt="" />
           </IconButton>
 
-          <IconButton label="Next">
+          <IconButton label="Next" onClick={onNextTrack} disabled={!canGoNext}>
             <img src={nextIcon} alt="" />
           </IconButton>
 
-          <IconButton label="Repeat">
-            <img src={repeatIcon} alt="" />
+          <IconButton label="Repeat" isActive={isRepeatTrackEnabled} onClick={onToggleRepeatTrack}>
+            <span
+              className="playerControlMaskIcon"
+              style={{ '--player-control-icon': `url(${repeatIcon})` } as CSSProperties}
+              aria-hidden="true"
+            />
           </IconButton>
         </div>
 

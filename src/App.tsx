@@ -2,13 +2,18 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 import { API_BASE_URL, signInRequest, signUpRequest } from './api/authApi';
 import {
+  addAlbumToLibrary,
+  addSongToPlaylist,
   createPlaylist,
+  createTrackRadio,
   deletePlaylist,
   fetchHistory,
   fetchLibrary,
   fetchPlaylist,
   fetchSearch,
   fetchTrackUrl,
+  removeSongFromPlaylist,
+  renamePlaylist,
 } from './api/musicApi';
 import AuthScreen from './components/AuthScreen';
 import HomeScreen from './components/HomeScreen';
@@ -17,6 +22,21 @@ import PlayerBar from './components/PlayerBar';
 import type { AuthPayload, Screen } from './types/auth';
 import type { PlaylistResponse, PlaylistSong } from './types/playlist';
 import type { SearchItem } from './types/search';
+
+type PlaylistPlaybackQueue = {
+  playlistId: number;
+  songs: PlaylistSong[];
+  index: number;
+};
+
+function getShuffledNextIndex(queue: PlaylistPlaybackQueue): number {
+  if (queue.songs.length < 2) {
+    return -1;
+  }
+
+  const offset = Math.floor(Math.random() * (queue.songs.length - 1)) + 1;
+  return (queue.index + offset) % queue.songs.length;
+}
 
 function App() {
   const [screen, setScreen] = useState<Screen>('landing');
@@ -35,15 +55,22 @@ function App() {
   const [libraryItems, setLibraryItems] = useState<SearchItem[]>([]);
   const [libraryLoading, setLibraryLoading] = useState(false);
   const [libraryError, setLibraryError] = useState('');
+  const [libraryAlbumActionId, setLibraryAlbumActionId] = useState<number | null>(null);
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
   const [createPlaylistError, setCreatePlaylistError] = useState('');
   const [playlist, setPlaylist] = useState<PlaylistResponse | null>(null);
   const [playlistLoading, setPlaylistLoading] = useState(false);
   const [playlistError, setPlaylistError] = useState('');
   const [deletingPlaylistId, setDeletingPlaylistId] = useState<number | null>(null);
+  const [renamingPlaylistId, setRenamingPlaylistId] = useState<number | null>(null);
+  const [renamePlaylistError, setRenamePlaylistError] = useState('');
+  const [playlistTrackActionSongId, setPlaylistTrackActionSongId] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [playlistPlaybackQueue, setPlaylistPlaybackQueue] = useState<PlaylistPlaybackQueue | null>(null);
+  const [isShuffleEnabled, setIsShuffleEnabled] = useState(false);
+  const [isRepeatTrackEnabled, setIsRepeatTrackEnabled] = useState(false);
   const [currentTrack, setCurrentTrack] = useState<SearchItem>({
     cover: null,
     name: 'Ничего не играет',
@@ -53,6 +80,9 @@ function App() {
   });
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const shuffleRef = useRef(false);
+  const repeatTrackRef = useRef(false);
+  const playlistPlaybackQueueRef = useRef<PlaylistPlaybackQueue | null>(null);
   const hideSearchTimeoutRef = useRef<number | null>(null);
   const playlistRequestControllerRef = useRef<AbortController | null>(null);
   const accessToken = useMemo(
@@ -154,12 +184,22 @@ function App() {
     setLibraryItems([]);
     setLibraryError('');
     setLibraryLoading(false);
+    setLibraryAlbumActionId(null);
     setIsCreatingPlaylist(false);
     setCreatePlaylistError('');
     setPlaylist(null);
     setPlaylistError('');
     setPlaylistLoading(false);
     setDeletingPlaylistId(null);
+    setRenamingPlaylistId(null);
+    setRenamePlaylistError('');
+    setPlaylistTrackActionSongId(null);
+    setPlaylistPlaybackQueue(null);
+    playlistPlaybackQueueRef.current = null;
+    setIsShuffleEnabled(false);
+    shuffleRef.current = false;
+    setIsRepeatTrackEnabled(false);
+    repeatTrackRef.current = false;
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
@@ -259,6 +299,15 @@ function App() {
   }, []);
 
   useEffect(() => {
+    playlistPlaybackQueueRef.current = playlistPlaybackQueue;
+
+    if (playlistPlaybackQueue === null && shuffleRef.current) {
+      shuffleRef.current = false;
+      setIsShuffleEnabled(false);
+    }
+  }, [playlistPlaybackQueue]);
+
+  useEffect(() => {
     const audio = new Audio();
     audioRef.current = audio;
 
@@ -270,6 +319,63 @@ function App() {
       setDuration(nextDuration);
     };
     const onEnded = () => {
+      if (repeatTrackRef.current && audio.src) {
+        audio.currentTime = 0;
+        setCurrentTime(0);
+        void audio.play().then(
+          () => setIsPlaying(true),
+          () => setIsPlaying(false),
+        );
+        return;
+      }
+
+      const currentQueue = playlistPlaybackQueueRef.current;
+      const nextIndex = currentQueue
+        ? shuffleRef.current
+          ? getShuffledNextIndex(currentQueue)
+          : currentQueue.index + 1
+        : -1;
+      const nextSong = currentQueue?.songs[nextIndex];
+
+      if (currentQueue && nextSong) {
+        const rawUrl = nextSong.url?.trim();
+        if (!rawUrl) {
+          setPlaylistError('У следующего трека отсутствует ссылка на аудио.');
+          setIsPlaying(false);
+          return;
+        }
+
+        const resolvedTrackUrl =
+          rawUrl.startsWith('http://') || rawUrl.startsWith('https://')
+            ? rawUrl
+            : new URL(rawUrl, API_BASE_URL).toString();
+
+        const nextQueue = {
+          playlistId: currentQueue.playlistId,
+          songs: currentQueue.songs,
+          index: nextIndex,
+        };
+
+        setPlaylistError('');
+        setCurrentTime(0);
+        setDuration(0);
+        audio.src = resolvedTrackUrl;
+        setCurrentTrack({
+          cover: nextSong.cover,
+          name: nextSong.title,
+          type: 'Track',
+          author: nextSong.author,
+          id: nextSong.songId,
+        });
+        playlistPlaybackQueueRef.current = nextQueue;
+        setPlaylistPlaybackQueue(nextQueue);
+        void audio.play().then(
+          () => setIsPlaying(true),
+          () => setIsPlaying(false),
+        );
+        return;
+      }
+
       setIsPlaying(false);
     };
     const onPlay = () => setIsPlaying(true);
@@ -347,6 +453,10 @@ function App() {
       audioRef.current.src = resolvedTrackUrl;
       await audioRef.current.play();
       setCurrentTrack(item);
+      playlistPlaybackQueueRef.current = null;
+      shuffleRef.current = false;
+      setIsShuffleEnabled(false);
+      setPlaylistPlaybackQueue(null);
       setIsPlaying(true);
       setIsSearchOpen(false);
     } catch (error) {
@@ -356,7 +466,7 @@ function App() {
     }
   };
 
-  const onPlaylistSongClick = async (song: PlaylistSong) => {
+  const playPlaylistSong = async (song: PlaylistSong, nextQueue: PlaylistPlaybackQueue | null) => {
     if (!audioRef.current) {
       return;
     }
@@ -385,12 +495,28 @@ function App() {
         author: song.author,
         id: song.songId,
       });
+      playlistPlaybackQueueRef.current = nextQueue;
+      setPlaylistPlaybackQueue(nextQueue);
       setIsPlaying(true);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Не удалось запустить трек из плейлиста.';
       setPlaylistError(message);
       setIsPlaying(false);
     }
+  };
+
+  const onPlaylistSongClick = async (song: PlaylistSong) => {
+    const songIndex = playlist?.songs.findIndex((playlistSong) => playlistSong.songId === song.songId) ?? -1;
+    const nextQueue =
+      playlist && songIndex >= 0
+        ? {
+            playlistId: playlist.playlistId,
+            songs: playlist.songs,
+            index: songIndex,
+          }
+        : null;
+
+    await playPlaylistSong(song, nextQueue);
   };
 
   const openPlaylist = async (playlistId: number) => {
@@ -476,6 +602,24 @@ function App() {
     }
   };
 
+  const onAddAlbumToLibrary = async (albumId: number) => {
+    if (!accessToken) {
+      return;
+    }
+
+    try {
+      setLibraryAlbumActionId(albumId);
+      setLibraryError('');
+      const libraryResponse = await addAlbumToLibrary(accessToken, albumId);
+      setLibraryItems(libraryResponse.items ?? []);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Не удалось добавить альбом в медиатеку.';
+      setLibraryError(message);
+    } finally {
+      setLibraryAlbumActionId(null);
+    }
+  };
+
   const onDeletePlaylist = async (playlistId: number) => {
     if (!accessToken) {
       setPlaylistError('Сначала войдите в аккаунт.');
@@ -487,6 +631,11 @@ function App() {
       setPlaylistError('');
       await deletePlaylist(accessToken, playlistId);
       setPlaylist((currentPlaylist) => (currentPlaylist?.playlistId === playlistId ? null : currentPlaylist));
+      setPlaylistPlaybackQueue((currentQueue) => {
+        const nextQueue = currentQueue?.playlistId === playlistId ? null : currentQueue;
+        playlistPlaybackQueueRef.current = nextQueue;
+        return nextQueue;
+      });
 
       const libraryResponse = await fetchLibrary(accessToken);
       setLibraryItems(libraryResponse.items ?? []);
@@ -496,6 +645,111 @@ function App() {
       setPlaylistError(message);
     } finally {
       setDeletingPlaylistId(null);
+    }
+  };
+
+  const onRenamePlaylist = async (playlistId: number, title: string) => {
+    if (!accessToken) {
+      setRenamePlaylistError('Сначала войдите в аккаунт.');
+      throw new Error('Missing access token');
+    }
+
+    try {
+      setRenamingPlaylistId(playlistId);
+      setRenamePlaylistError('');
+      const renamedPlaylist = await renamePlaylist(accessToken, playlistId, title);
+      setPlaylist((currentPlaylist) =>
+        currentPlaylist?.playlistId === playlistId ? renamedPlaylist : currentPlaylist,
+      );
+
+      const libraryResponse = await fetchLibrary(accessToken);
+      setLibraryItems(libraryResponse.items ?? []);
+      setLibraryError('');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Не удалось переименовать плейлист.';
+      setRenamePlaylistError(message);
+      throw error;
+    } finally {
+      setRenamingPlaylistId(null);
+    }
+  };
+
+  const onRemoveSongFromPlaylist = async (songId: number) => {
+    if (!accessToken || !playlist) {
+      return;
+    }
+
+    try {
+      setPlaylistTrackActionSongId(songId);
+      setPlaylistError('');
+      const updatedPlaylist = await removeSongFromPlaylist(accessToken, playlist.playlistId, songId);
+      setPlaylist(updatedPlaylist);
+      setPlaylistPlaybackQueue((currentQueue) => {
+        if (currentQueue?.playlistId !== updatedPlaylist.playlistId) {
+          return currentQueue;
+        }
+
+        const nextIndex = updatedPlaylist.songs.findIndex((playlistSong) => playlistSong.songId === currentTrack.id);
+        if (nextIndex < 0) {
+          playlistPlaybackQueueRef.current = null;
+          return null;
+        }
+
+        const nextQueue = {
+          playlistId: updatedPlaylist.playlistId,
+          songs: updatedPlaylist.songs,
+          index: nextIndex,
+        };
+        playlistPlaybackQueueRef.current = nextQueue;
+        return nextQueue;
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Не удалось удалить трек из плейлиста.';
+      setPlaylistError(message);
+    } finally {
+      setPlaylistTrackActionSongId(null);
+    }
+  };
+
+  const onAddSongToPlaylist = async (songId: number, targetPlaylistId: number) => {
+    if (!accessToken) {
+      return;
+    }
+
+    try {
+      setPlaylistTrackActionSongId(songId);
+      setPlaylistError('');
+      const updatedPlaylist = await addSongToPlaylist(accessToken, targetPlaylistId, songId);
+      setPlaylist((currentPlaylist) =>
+        currentPlaylist?.playlistId === targetPlaylistId ? updatedPlaylist : currentPlaylist,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Не удалось добавить трек в плейлист.';
+      setPlaylistError(message);
+    } finally {
+      setPlaylistTrackActionSongId(null);
+    }
+  };
+
+  const onCreateTrackRadio = async (songId: number) => {
+    if (!accessToken) {
+      return;
+    }
+
+    try {
+      setPlaylistTrackActionSongId(songId);
+      setPlaylistError('');
+      const radioPlaylist = await createTrackRadio(accessToken, songId);
+      setPlaylist(radioPlaylist);
+
+      const libraryResponse = await fetchLibrary(accessToken);
+      setLibraryItems(libraryResponse.items ?? []);
+      setLibraryError('');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Не удалось создать радио по треку.';
+      setPlaylistError(message);
+    } finally {
+      setPlaylistTrackActionSongId(null);
     }
   };
 
@@ -526,6 +780,53 @@ function App() {
     audioRef.current.currentTime = clampedTime;
     setCurrentTime(clampedTime);
   };
+
+  const toggleRepeatTrack = () => {
+    setIsRepeatTrackEnabled((currentValue) => {
+      const nextValue = !currentValue;
+      repeatTrackRef.current = nextValue;
+      return nextValue;
+    });
+  };
+
+  const toggleShuffle = () => {
+    if (!playlistPlaybackQueue) {
+      return;
+    }
+
+    setIsShuffleEnabled((currentValue) => {
+      const nextValue = !currentValue;
+      shuffleRef.current = nextValue;
+      return nextValue;
+    });
+  };
+
+  const playAdjacentPlaylistTrack = async (direction: -1 | 1) => {
+    if (!playlistPlaybackQueue) {
+      return;
+    }
+
+    const nextIndex =
+      direction > 0 && shuffleRef.current
+        ? getShuffledNextIndex(playlistPlaybackQueue)
+        : playlistPlaybackQueue.index + direction;
+    const nextSong = playlistPlaybackQueue.songs[nextIndex];
+    if (!nextSong) {
+      return;
+    }
+
+    await playPlaylistSong(nextSong, {
+      playlistId: playlistPlaybackQueue.playlistId,
+      songs: playlistPlaybackQueue.songs,
+      index: nextIndex,
+    });
+  };
+
+  const canShuffle = playlistPlaybackQueue !== null;
+  const canGoPrevious = playlistPlaybackQueue !== null && playlistPlaybackQueue.index > 0;
+  const canGoNext =
+    playlistPlaybackQueue !== null &&
+    (isShuffleEnabled ? playlistPlaybackQueue.songs.length > 1 : playlistPlaybackQueue.index < playlistPlaybackQueue.songs.length - 1);
 
   useEffect(() => {
     if (!isHomeScreen) {
@@ -572,20 +873,30 @@ function App() {
             libraryItems={libraryItems}
             libraryLoading={libraryLoading}
             libraryError={libraryError}
+            libraryAlbumActionId={libraryAlbumActionId}
             isCreatingPlaylist={isCreatingPlaylist}
             createPlaylistError={createPlaylistError}
             deletingPlaylistId={deletingPlaylistId}
+            renamingPlaylistId={renamingPlaylistId}
+            renamePlaylistError={renamePlaylistError}
             playlist={playlist}
             playlistLoading={playlistLoading}
             playlistError={playlistError}
+            playlistTrackActionSongId={playlistTrackActionSongId}
+            playingSongId={currentTrack.type === 'Track' ? currentTrack.id : null}
             onQueryChange={onSearchQueryChange}
             onFocus={onSearchFocus}
             onBlur={onSearchBlur}
             onSearchItemClick={onSearchItemClick}
             onLibraryItemClick={onLibraryItemClick}
             onPlaylistSongClick={onPlaylistSongClick}
+            onAddAlbumToLibrary={onAddAlbumToLibrary}
             onCreatePlaylist={onCreatePlaylist}
             onDeletePlaylist={onDeletePlaylist}
+            onRenamePlaylist={onRenamePlaylist}
+            onRemoveSongFromPlaylist={onRemoveSongFromPlaylist}
+            onAddSongToPlaylist={onAddSongToPlaylist}
+            onCreateTrackRadio={onCreateTrackRadio}
           />
         ) : (
           <AuthScreen
@@ -614,8 +925,17 @@ function App() {
           trackCover={currentTrack.cover}
           currentTime={currentTime}
           duration={duration}
+          canShuffle={canShuffle}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          isShuffleEnabled={isShuffleEnabled}
+          isRepeatTrackEnabled={isRepeatTrackEnabled}
           onTogglePlay={togglePlay}
           onSeek={seekTrack}
+          onToggleShuffle={toggleShuffle}
+          onPreviousTrack={() => void playAdjacentPlaylistTrack(-1)}
+          onNextTrack={() => void playAdjacentPlaylistTrack(1)}
+          onToggleRepeatTrack={toggleRepeatTrack}
         />
       ) : null}
     </main>

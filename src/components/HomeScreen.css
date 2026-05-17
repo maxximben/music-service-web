@@ -128,6 +128,18 @@
   padding: 8px;
 }
 
+.searchItemRow {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  align-items: center;
+  border-radius: 10px;
+}
+
+.searchItemRowPlain {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .searchItem {
   width: 100%;
   border: 0;
@@ -143,7 +155,7 @@
   cursor: pointer;
 }
 
-.searchItem:hover {
+.searchItemRow:hover .searchItem {
   background: rgba(255, 255, 255, 0.06);
 }
 
@@ -200,6 +212,125 @@
   border: 1px solid rgba(143, 149, 195, 0.4);
   border-radius: 999px;
   padding: 3px 8px;
+}
+
+.searchItemActions {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-self: stretch;
+  align-items: center;
+}
+
+.searchItemMenuButton {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  background: transparent;
+  color: #c7cada;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.searchItemRow:hover .searchItemMenuButton,
+.searchItemMenuButton[aria-expanded='true'],
+.searchItemMenuButton:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.searchItemMenuButton:hover {
+  background: transparent;
+}
+
+.searchItemMenuButton:focus-visible {
+  outline: none;
+}
+
+.searchItemMenu {
+  position: absolute;
+  right: 0;
+  top: calc(100% - 2px);
+  z-index: 30;
+  width: 220px;
+  padding: 6px;
+  background: rgba(18, 20, 29, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  text-align: left;
+}
+
+.searchItemSubmenuWrap {
+  position: relative;
+}
+
+.searchItemSubmenuTrigger,
+.searchItemMenuOption,
+.searchItemTarget {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #f2f3fa;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 9px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.searchItemSubmenuTrigger {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.searchItemSubmenuTrigger:hover,
+.searchItemSubmenuWrap:focus-within .searchItemSubmenuTrigger,
+.searchItemMenuOption:hover,
+.searchItemTarget:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.searchItemSubmenuTrigger:disabled,
+.searchItemMenuOption:disabled,
+.searchItemTarget:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.searchItemSubmenu {
+  position: absolute;
+  top: -7px;
+  right: calc(100% + 6px);
+  z-index: 31;
+  width: 220px;
+  padding: 6px;
+  background: rgba(18, 20, 29, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  display: none;
+}
+
+.searchItemSubmenuWrap:hover .searchItemSubmenu,
+.searchItemSubmenuWrap:focus-within .searchItemSubmenu {
+  display: block;
+}
+
+.searchItemTargets {
+  max-height: 180px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.searchItemMenuHint {
+  margin: 0;
+  padding: 6px 9px;
+  color: #9ea4b9;
+  font-size: 12px;
 }
 
 .searchHint,

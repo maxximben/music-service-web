@@ -266,18 +266,18 @@
   right: 0;
   top: 34px;
   z-index: 5;
-  min-width: 112px;
+  min-width: 168px;
   padding: 6px;
   background: rgba(18, 20, 29, 0.98);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
 }
 
+.libraryItemMenuOption,
 .libraryItemDeleteButton {
   width: 100%;
   border: 0;
   background: transparent;
-  color: #ffd8e1;
   font-size: 13px;
   font-weight: 700;
   padding: 8px 9px;
@@ -285,13 +285,78 @@
   cursor: pointer;
 }
 
+.libraryItemMenuOption {
+  color: #f2f3fa;
+}
+
+.libraryItemMenuOption:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.libraryItemDeleteButton {
+  color: #ffd8e1;
+}
+
 .libraryItemDeleteButton:hover {
   background: rgba(255, 122, 154, 0.16);
 }
 
+.libraryItemMenuOption:disabled,
 .libraryItemDeleteButton:disabled {
   cursor: default;
   opacity: 0.6;
+}
+
+.libraryRenameForm {
+  display: grid;
+  gap: 7px;
+}
+
+.libraryRenameInput {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(13, 13, 21, 0.95);
+  color: #f2f2f8;
+  font-size: 13px;
+  padding: 8px 9px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.libraryRenameActions {
+  display: flex;
+  gap: 6px;
+}
+
+.libraryRenameSubmit,
+.libraryRenameCancel {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f2f3fa;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 8px;
+  cursor: pointer;
+}
+
+.libraryRenameSubmit {
+  background: rgba(193, 82, 255, 0.28);
+  border-color: rgba(193, 82, 255, 0.6);
+}
+
+.libraryRenameCancel {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.libraryRenameSubmit:disabled,
+.libraryRenameCancel:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.libraryRenameError {
+  margin: 0;
+  color: #ff7a9a;
+  font-size: 12px;
 }
 
 .libraryHint,

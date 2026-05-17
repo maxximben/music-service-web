@@ -107,6 +107,20 @@
   opacity: 1;
 }
 
+.playerControlActive {
+  color: #c75ae6;
+  opacity: 1;
+}
+
+.playerControl:disabled {
+  cursor: default;
+  opacity: 0.34;
+}
+
+.playerControl:disabled:hover {
+  opacity: 0.34;
+}
+
 .playerControl:active {
   transform: scale(0.96);
 }
@@ -117,6 +131,15 @@
   display: block;
   object-fit: contain;
   filter: brightness(0) saturate(100%) invert(98%) opacity(0.95);
+}
+
+.playerControlMaskIcon {
+  width: 14px;
+  height: 14px;
+  display: block;
+  background: currentColor;
+  -webkit-mask: var(--player-control-icon) center / contain no-repeat;
+  mask: var(--player-control-icon) center / contain no-repeat;
 }
 
 .playerControlPrimary {

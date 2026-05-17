@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { SearchItem } from '../types/search';
 import './LibraryPanel.css';
@@ -12,9 +12,12 @@ type LibraryPanelProps = {
   isCreatingPlaylist: boolean;
   createPlaylistError: string;
   deletingPlaylistId: number | null;
+  renamingPlaylistId: number | null;
+  renamePlaylistError: string;
   onItemClick: (item: SearchItem) => void;
   onCreatePlaylist: (title: string) => Promise<void>;
   onDeletePlaylist: (playlistId: number) => Promise<void>;
+  onRenamePlaylist: (playlistId: number, title: string) => Promise<void>;
 };
 
 function LibraryPanel({
@@ -24,9 +27,12 @@ function LibraryPanel({
   isCreatingPlaylist,
   createPlaylistError,
   deletingPlaylistId,
+  renamingPlaylistId,
+  renamePlaylistError,
   onItemClick,
   onCreatePlaylist,
   onDeletePlaylist,
+  onRenamePlaylist,
 }: LibraryPanelProps) {
   const [typeFilter, setTypeFilter] = useState<LibraryTypeFilter>('All');
   const [query, setQuery] = useState('');
@@ -34,6 +40,42 @@ function LibraryPanel({
   const [playlistTitle, setPlaylistTitle] = useState('');
   const [localCreateError, setLocalCreateError] = useState('');
   const [openMenuPlaylistId, setOpenMenuPlaylistId] = useState<number | null>(null);
+  const [editingPlaylistId, setEditingPlaylistId] = useState<number | null>(null);
+  const [editingPlaylistTitle, setEditingPlaylistTitle] = useState('');
+  const [localRenameError, setLocalRenameError] = useState('');
+
+  useEffect(() => {
+    if (openMenuPlaylistId === null) {
+      return;
+    }
+
+    const closeMenuOnOutsideClick = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest('.libraryItemActions')) {
+        return;
+      }
+
+      setOpenMenuPlaylistId(null);
+      setEditingPlaylistId(null);
+      setLocalRenameError('');
+    };
+
+    const closeMenuOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpenMenuPlaylistId(null);
+        setEditingPlaylistId(null);
+        setLocalRenameError('');
+      }
+    };
+
+    document.addEventListener('pointerdown', closeMenuOnOutsideClick);
+    document.addEventListener('keydown', closeMenuOnEscape);
+
+    return () => {
+      document.removeEventListener('pointerdown', closeMenuOnOutsideClick);
+      document.removeEventListener('keydown', closeMenuOnEscape);
+    };
+  }, [openMenuPlaylistId]);
 
   const filteredItems = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -78,6 +120,7 @@ function LibraryPanel({
   };
 
   const visibleCreateError = localCreateError || createPlaylistError;
+  const visibleRenameError = localRenameError || renamePlaylistError;
 
   const deletePlaylist = async (item: SearchItem) => {
     const shouldDelete = window.confirm(`Удалить плейлист "${item.name}"?`);
@@ -87,6 +130,33 @@ function LibraryPanel({
 
     setOpenMenuPlaylistId(null);
     await onDeletePlaylist(item.id);
+  };
+
+  const startRenamePlaylist = (item: SearchItem) => {
+    setEditingPlaylistId(item.id);
+    setEditingPlaylistTitle(item.name);
+    setLocalRenameError('');
+  };
+
+  const submitRenamePlaylist = async (event: FormEvent<HTMLFormElement>, item: SearchItem) => {
+    event.preventDefault();
+
+    const title = editingPlaylistTitle.trim();
+    if (!title) {
+      setLocalRenameError('Введите название плейлиста');
+      return;
+    }
+
+    setLocalRenameError('');
+    try {
+      await onRenamePlaylist(item.id, title);
+    } catch {
+      return;
+    }
+
+    setEditingPlaylistId(null);
+    setOpenMenuPlaylistId(null);
+    setEditingPlaylistTitle('');
   };
 
   return (
@@ -211,7 +281,11 @@ function LibraryPanel({
                       <button
                         type="button"
                         className="libraryItemMenuButton"
-                        onClick={() => setOpenMenuPlaylistId((currentId) => (currentId === item.id ? null : item.id))}
+                        onClick={() => {
+                          setOpenMenuPlaylistId((currentId) => (currentId === item.id ? null : item.id));
+                          setEditingPlaylistId(null);
+                          setLocalRenameError('');
+                        }}
                         aria-label={`Действия с плейлистом ${item.name}`}
                         aria-expanded={openMenuPlaylistId === item.id}
                       >
@@ -219,14 +293,61 @@ function LibraryPanel({
                       </button>
                       {openMenuPlaylistId === item.id ? (
                         <div className="libraryItemMenu">
-                          <button
-                            type="button"
-                            className="libraryItemDeleteButton"
-                            onClick={() => void deletePlaylist(item)}
-                            disabled={deletingPlaylistId !== null}
-                          >
-                            {deletingPlaylistId === item.id ? 'Удаление...' : 'Удалить'}
-                          </button>
+                          {editingPlaylistId === item.id ? (
+                            <form className="libraryRenameForm" onSubmit={(event) => void submitRenamePlaylist(event, item)}>
+                              <input
+                                className="libraryRenameInput"
+                                value={editingPlaylistTitle}
+                                onChange={(event) => {
+                                  setEditingPlaylistTitle(event.target.value);
+                                  setLocalRenameError('');
+                                }}
+                                disabled={renamingPlaylistId !== null}
+                                autoComplete="off"
+                                autoFocus
+                              />
+                              <div className="libraryRenameActions">
+                                <button
+                                  type="submit"
+                                  className="libraryRenameSubmit"
+                                  disabled={renamingPlaylistId !== null}
+                                >
+                                  {renamingPlaylistId === item.id ? 'Сохранение...' : 'Сохранить'}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="libraryRenameCancel"
+                                  onClick={() => {
+                                    setEditingPlaylistId(null);
+                                    setLocalRenameError('');
+                                  }}
+                                  disabled={renamingPlaylistId !== null}
+                                >
+                                  Отмена
+                                </button>
+                              </div>
+                              {visibleRenameError ? <p className="libraryRenameError">{visibleRenameError}</p> : null}
+                            </form>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                className="libraryItemMenuOption"
+                                onClick={() => startRenamePlaylist(item)}
+                                disabled={deletingPlaylistId !== null || renamingPlaylistId !== null}
+                              >
+                                Переименовать
+                              </button>
+                              <button
+                                type="button"
+                                className="libraryItemDeleteButton"
+                                onClick={() => void deletePlaylist(item)}
+                                disabled={deletingPlaylistId !== null || renamingPlaylistId !== null}
+                              >
+                                {deletingPlaylistId === item.id ? 'Удаление...' : 'Удалить'}
+                              </button>
+                            </>
+                          )}
                         </div>
                       ) : null}
                     </div>

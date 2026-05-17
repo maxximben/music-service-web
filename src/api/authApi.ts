@@ -1,7 +1,7 @@
 import type { AuthPayload } from '../types/auth';
 
 export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL?.toString().trim() || 'http://localhost:8080';
+  import.meta.env.VITE_API_BASE_URL?.toString().trim() || 'https://maxximben-music-service-fc17.twc1.net';
 
 async function extractErrorMessage(response: Response): Promise<string> {
   try {
